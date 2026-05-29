@@ -833,97 +833,85 @@ async function connectAbly() {
   const room = document.getElementById('room-id').value.trim() || 'default';
   if (!key) { setStatus('error', 'Please enter your Ably API key'); return; }
 
-  // Basic key format check
-  if (!key.includes(':') || !key.includes('.')) {
-    setStatus('error', 'Key format wrong — should look like: xVLyHw.abc123:XXXXX');
-    return;
-  }
-
   setStatus('connecting', 'Connecting to Ably...');
   document.getElementById('connect-btn').disabled = true;
 
   try {
     if (ablyClient) { try { ablyClient.close(); } catch(e){} }
 
-    ablyClient = new Ably.Realtime({
-      key,
-      clientId: 'player-' + Math.random().toString(36).slice(2,8),
-      closeOnUnload: true
-    });
+    const clientId = 'player-' + Math.random().toString(36).slice(2, 8);
 
-    ablyClient.connection.on('connected', async () => {
-      setStatus('connected', 'Connected — joining room: ' + room);
-      channel = ablyClient.channels.get('battleships-' + room);
+    ablyClient = new Ably.Realtime({ key, clientId });
 
-      // Get presence to determine if we are p1 or p2
-      const members = await channel.presence.get();
-      if (members.length >= 2) {
-        setStatus('error', 'Room is full — try a different room name');
-        ablyClient.close();
-        document.getElementById('connect-btn').disabled = false;
-        return;
-      }
+    // Wait for connected using promise style
+    await ablyClient.connection.once('connected');
 
-      myPlayerId = members.length === 0 ? 'p1' : 'p2';
-      document.getElementById('my-badge').textContent = myPlayerId.toUpperCase();
-      document.getElementById('connect-btn').textContent = 'CONNECTED';
-      addChat('system', `You joined as ${myPlayerId.toUpperCase()} in room "${room}"`);
+    setStatus('connected', 'Connected — joining room: ' + room);
+    channel = ablyClient.channels.get('battleships-' + room);
 
-      // Subscribe to messages
-      channel.subscribe(handleAblyMessage);
+    // Attach channel first before calling presence.get()
+    await channel.attach();
 
-      // Enter presence
-      await channel.presence.enter({ player: myPlayerId });
+    // Subscribe to messages
+    await channel.subscribe(handleAblyMessage);
 
-      // Watch for opponent joining/leaving
-      channel.presence.subscribe('enter', (member) => {
-        if (member.data.player !== myPlayerId) {
-          addChat('system', 'Opponent connected! Place your ships.');
-          startPlacingPhase();
-        }
-      });
+    // Now get presence members
+    const members = await channel.presence.get();
 
-      channel.presence.subscribe('leave', (member) => {
-        if (member.data.player !== myPlayerId) {
-          addChat('system', '⚠ Opponent disconnected.');
-          setStatus('error', 'Opponent disconnected');
-        }
-      });
+    if (members.length >= 2) {
+      setStatus('error', 'Room is full — try a different room name');
+      ablyClient.close();
+      document.getElementById('connect-btn').disabled = false;
+      return;
+    }
 
-      // If we are p2, p1 is already waiting — start placing immediately
-      if (myPlayerId === 'p2') {
-        addChat('system', 'Opponent is waiting! Place your ships.');
+    myPlayerId = members.length === 0 ? 'p1' : 'p2';
+    document.getElementById('my-badge').textContent = myPlayerId.toUpperCase();
+    document.getElementById('connect-btn').textContent = 'CONNECTED';
+    addChat('system', `You joined as ${myPlayerId.toUpperCase()} in room "${room}"`);
+
+    // Enter presence
+    await channel.presence.enter({ player: myPlayerId });
+
+    // Watch for opponent joining/leaving
+    channel.presence.subscribe('enter', (member) => {
+      if (member.data.player !== myPlayerId) {
+        addChat('system', 'Opponent connected! Place your ships.');
         startPlacingPhase();
-        channel.publish('game', { type: 'opponent_joined' });
-      } else {
-        showPhase('waiting');
-        document.querySelector('#phase-waiting .phase-sub').textContent = 'Waiting for opponent to join...';
       }
     });
 
-    ablyClient.connection.on('failed', (stateChange) => {
-      const reason = stateChange.reason ? stateChange.reason.message : 'unknown';
-      setStatus('error', 'Failed: ' + reason);
+    channel.presence.subscribe('leave', (member) => {
+      if (member.data.player !== myPlayerId) {
+        addChat('system', '⚠ Opponent disconnected.');
+        setStatus('error', 'Opponent disconnected');
+      }
+    });
+
+    // If p2, p1 is already there
+    if (myPlayerId === 'p2') {
+      addChat('system', 'Opponent is waiting! Place your ships.');
+      startPlacingPhase();
+      channel.publish('game', { type: 'opponent_joined' });
+    } else {
+      showPhase('waiting');
+      document.querySelector('#phase-waiting .phase-sub').textContent = 'Waiting for opponent to join this room...';
+    }
+
+    // Handle disconnects
+    ablyClient.connection.on('failed', (s) => {
+      setStatus('error', 'Failed: ' + (s.reason ? s.reason.message : 'unknown'));
       document.getElementById('connect-btn').disabled = false;
       document.getElementById('connect-btn').textContent = 'CONNECT';
     });
-
-    ablyClient.connection.on('disconnected', (stateChange) => {
-      const reason = stateChange.reason ? stateChange.reason.message : 'unknown';
-      setStatus('error', 'Disconnected: ' + reason);
-      document.getElementById('connect-btn').disabled = false;
-      document.getElementById('connect-btn').textContent = 'CONNECT';
-    });
-
-    ablyClient.connection.on('suspended', () => {
-      setStatus('error', 'Connection suspended — check your internet');
-      document.getElementById('connect-btn').disabled = false;
-      document.getElementById('connect-btn').textContent = 'CONNECT';
+    ablyClient.connection.on('disconnected', (s) => {
+      setStatus('error', 'Disconnected: ' + (s.reason ? s.reason.message : 'unknown'));
     });
 
   } catch(e) {
     setStatus('error', 'Error: ' + e.message);
     document.getElementById('connect-btn').disabled = false;
+    document.getElementById('connect-btn').textContent = 'CONNECT';
   }
 }
 
