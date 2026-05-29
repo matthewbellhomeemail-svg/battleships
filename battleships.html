@@ -833,69 +833,67 @@ async function connectAbly() {
   const room = document.getElementById('room-id').value.trim() || 'default';
   if (!key) { setStatus('error', 'Please enter your Ably API key'); return; }
 
-  setStatus('connecting', 'Connecting to Ably...');
+  setStatus('connecting', 'Connecting...');
   document.getElementById('connect-btn').disabled = true;
 
   try {
-    if (ablyClient) { try { ablyClient.close(); } catch(e){} }
+    if (ablyClient) { try { ablyClient.close(); } catch(e){} ablyClient = null; channel = null; }
 
     const clientId = 'player-' + Math.random().toString(36).slice(2, 8);
-
     ablyClient = new Ably.Realtime({ key, clientId });
 
-    // Wait for connected with explicit promise + timeout
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Timed out — check your key and internet')), 12000);
-      ablyClient.connection.once('connected', () => { clearTimeout(timer); resolve(); });
-      ablyClient.connection.once('failed', (s) => { clearTimeout(timer); reject(new Error(s.reason ? s.reason.message : 'Connection failed')); });
+    // Wait for connection result
+    const connState = await new Promise((resolve) => {
+      ablyClient.connection.on((stateChange) => {
+        if (stateChange.current === 'connected') resolve({ ok: true });
+        if (stateChange.current === 'failed')     resolve({ ok: false, msg: stateChange.reason ? stateChange.reason.message : 'Auth failed — check API key capabilities (needs publish, subscribe, presence)' });
+        if (stateChange.current === 'suspended')  resolve({ ok: false, msg: 'Suspended — check internet connection' });
+      });
+      setTimeout(() => resolve({ ok: false, msg: 'Timed out after 15s' }), 15000);
     });
+
+    if (!connState.ok) {
+      setStatus('error', connState.msg);
+      document.getElementById('connect-btn').disabled = false;
+      document.getElementById('connect-btn').textContent = 'CONNECT';
+      ablyClient.close();
+      return;
+    }
 
     setStatus('connected', 'Connected — joining room: ' + room);
     channel = ablyClient.channels.get('battleships-' + room);
 
-    // Attach channel with callback-based promise
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Channel attach timed out')), 8000);
-      channel.attach((err) => { clearTimeout(timer); err ? reject(err) : resolve(); });
-    });
-
-    // Subscribe to messages
+    // Subscribe before attaching
     channel.subscribe(handleAblyMessage);
+    channel.presence.subscribe('enter', onPresenceEnter);
+    channel.presence.subscribe('leave', onPresenceLeave);
 
-    // Now get presence members
+    // Attach and enter presence
+    await channel.attach();
+    await channel.presence.enter({ player: 'tbd' });
+
+    // Now check how many are here
     const members = await channel.presence.get();
 
-    if (members.length >= 2) {
+    // Count real other players (not ourselves)
+    const othersCount = members.filter(m => m.clientId !== ablyClient.auth.clientId).length;
+
+    if (othersCount >= 2) {
       setStatus('error', 'Room is full — try a different room name');
       ablyClient.close();
       document.getElementById('connect-btn').disabled = false;
       return;
     }
 
-    myPlayerId = members.length === 0 ? 'p1' : 'p2';
+    myPlayerId = othersCount === 0 ? 'p1' : 'p2';
+
+    // Update our presence data with correct player id
+    await channel.presence.update({ player: myPlayerId });
+
     document.getElementById('my-badge').textContent = myPlayerId.toUpperCase();
     document.getElementById('connect-btn').textContent = 'CONNECTED';
     addChat('system', `You joined as ${myPlayerId.toUpperCase()} in room "${room}"`);
 
-    // Enter presence
-    await channel.presence.enter({ player: myPlayerId });
-
-    // Watch for opponent joining/leaving
-    channel.presence.subscribe('enter', (member) => {
-      if (member.data.player !== myPlayerId) {
-        addChat('system', 'Opponent connected! Place your ships.');
-        startPlacingPhase();
-      }
-    });
-
-    channel.presence.subscribe('leave', (member) => {
-      if (member.data.player !== myPlayerId) {
-        addChat('system', '⚠ Opponent disconnected.');
-        setStatus('error', 'Opponent disconnected');
-      }
-    });
-
-    // If p2, p1 is already there
     if (myPlayerId === 'p2') {
       addChat('system', 'Opponent is waiting! Place your ships.');
       startPlacingPhase();
@@ -905,20 +903,26 @@ async function connectAbly() {
       document.querySelector('#phase-waiting .phase-sub').textContent = 'Waiting for opponent to join this room...';
     }
 
-    // Handle disconnects
-    ablyClient.connection.on('failed', (s) => {
-      setStatus('error', 'Failed: ' + (s.reason ? s.reason.message : 'unknown'));
-      document.getElementById('connect-btn').disabled = false;
-      document.getElementById('connect-btn').textContent = 'CONNECT';
-    });
-    ablyClient.connection.on('disconnected', (s) => {
-      setStatus('error', 'Disconnected: ' + (s.reason ? s.reason.message : 'unknown'));
-    });
-
   } catch(e) {
     setStatus('error', 'Error: ' + e.message);
     document.getElementById('connect-btn').disabled = false;
     document.getElementById('connect-btn').textContent = 'CONNECT';
+  }
+}
+
+function onPresenceEnter(member) {
+  if (!myPlayerId) return;
+  if (member.data && member.data.player && member.data.player !== myPlayerId) {
+    addChat('system', 'Opponent connected! Place your ships.');
+    if (phase === 'waiting') startPlacingPhase();
+  }
+}
+
+function onPresenceLeave(member) {
+  if (!myPlayerId) return;
+  if (member.data && member.data.player && member.data.player !== myPlayerId) {
+    addChat('system', '⚠ Opponent disconnected.');
+    setStatus('error', 'Opponent disconnected');
   }
 }
 
