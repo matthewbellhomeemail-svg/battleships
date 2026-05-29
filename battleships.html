@@ -833,11 +833,23 @@ async function connectAbly() {
   const room = document.getElementById('room-id').value.trim() || 'default';
   if (!key) { setStatus('error', 'Please enter your Ably API key'); return; }
 
+  // Basic key format check
+  if (!key.includes(':') || !key.includes('.')) {
+    setStatus('error', 'Key format wrong — should look like: xVLyHw.abc123:XXXXX');
+    return;
+  }
+
   setStatus('connecting', 'Connecting to Ably...');
   document.getElementById('connect-btn').disabled = true;
 
   try {
-    ablyClient = new Ably.Realtime({ key, clientId: 'player-' + Math.random().toString(36).slice(2,8) });
+    if (ablyClient) { try { ablyClient.close(); } catch(e){} }
+
+    ablyClient = new Ably.Realtime({
+      key,
+      clientId: 'player-' + Math.random().toString(36).slice(2,8),
+      closeOnUnload: true
+    });
 
     ablyClient.connection.on('connected', async () => {
       setStatus('connected', 'Connected — joining room: ' + room);
@@ -882,7 +894,6 @@ async function connectAbly() {
       if (myPlayerId === 'p2') {
         addChat('system', 'Opponent is waiting! Place your ships.');
         startPlacingPhase();
-        // Tell p1 we arrived
         channel.publish('game', { type: 'opponent_joined' });
       } else {
         showPhase('waiting');
@@ -890,9 +901,24 @@ async function connectAbly() {
       }
     });
 
-    ablyClient.connection.on('failed', () => {
-      setStatus('error', 'Connection failed — check your API key');
+    ablyClient.connection.on('failed', (stateChange) => {
+      const reason = stateChange.reason ? stateChange.reason.message : 'unknown';
+      setStatus('error', 'Failed: ' + reason);
       document.getElementById('connect-btn').disabled = false;
+      document.getElementById('connect-btn').textContent = 'CONNECT';
+    });
+
+    ablyClient.connection.on('disconnected', (stateChange) => {
+      const reason = stateChange.reason ? stateChange.reason.message : 'unknown';
+      setStatus('error', 'Disconnected: ' + reason);
+      document.getElementById('connect-btn').disabled = false;
+      document.getElementById('connect-btn').textContent = 'CONNECT';
+    });
+
+    ablyClient.connection.on('suspended', () => {
+      setStatus('error', 'Connection suspended — check your internet');
+      document.getElementById('connect-btn').disabled = false;
+      document.getElementById('connect-btn').textContent = 'CONNECT';
     });
 
   } catch(e) {
