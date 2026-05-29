@@ -843,17 +843,24 @@ async function connectAbly() {
 
     ablyClient = new Ably.Realtime({ key, clientId });
 
-    // Wait for connected using promise style
-    await ablyClient.connection.once('connected');
+    // Wait for connected with explicit promise + timeout
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Timed out — check your key and internet')), 12000);
+      ablyClient.connection.once('connected', () => { clearTimeout(timer); resolve(); });
+      ablyClient.connection.once('failed', (s) => { clearTimeout(timer); reject(new Error(s.reason ? s.reason.message : 'Connection failed')); });
+    });
 
     setStatus('connected', 'Connected — joining room: ' + room);
     channel = ablyClient.channels.get('battleships-' + room);
 
-    // Attach channel first before calling presence.get()
-    await channel.attach();
+    // Attach channel with callback-based promise
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Channel attach timed out')), 8000);
+      channel.attach((err) => { clearTimeout(timer); err ? reject(err) : resolve(); });
+    });
 
     // Subscribe to messages
-    await channel.subscribe(handleAblyMessage);
+    channel.subscribe(handleAblyMessage);
 
     // Now get presence members
     const members = await channel.presence.get();
