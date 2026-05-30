@@ -304,10 +304,11 @@ async function connectAbly() {
     setStatus('connected', 'Connected');
     ch = ably.channels.get('bs-' + room);
 
-    // Subscribe BEFORE publishing anything
-    await new Promise((resolve, reject) => {
-      ch.subscribe(onMessage, (err) => err ? reject(err) : resolve());
-    });
+    // Subscribe BEFORE publishing anything — Ably v2 returns a Promise
+    ch.subscribe(onMessage);
+
+    // Small delay to ensure subscription is active
+    await new Promise(r => setTimeout(r, 300));
 
     // Announce arrival — p1 (if in room) will respond with 'welcome'
     pub({ type: 'hello' });
