@@ -4,696 +4,127 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BATTLESHIPS</title>
-
-
 <style>
   :root {
-    --navy: #0a1628;
-    --deep: #061020;
-    --steel: #1e3a5f;
-    --mid: #2a5080;
-    --ocean: #0d4a7a;
-    --water: #1a6ea8;
-    --foam: #5ba4d0;
-    --mist: #a8cce0;
-    --white: #e8f4fc;
-    --gold: #d4a843;
-    --gold-dark: #9a7520;
-    --amber: #f0a030;
-    --red: #c0392b;
-    --red-bright: #e74c3c;
-    --green: #27ae60;
-    --green-bright: #2ecc71;
+    --navy: #0a1628; --deep: #061020; --steel: #1e3a5f; --mid: #2a5080;
+    --foam: #5ba4d0; --mist: #a8cce0; --white: #e8f4fc;
+    --gold: #d4a843; --amber: #f0a030;
+    --red: #c0392b; --red-bright: #e74c3c;
+    --green: #27ae60; --green-bright: #2ecc71;
     --miss: #4a7fa8;
-    --radar: #00ff88;
-    --hit-glow: #ff4444;
     --mono: 'Courier New', monospace;
-    --display: 'Arial Black', 'Impact', sans-serif;
+    --display: 'Arial Black', Impact, sans-serif;
     --body: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
   }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--deep);
-    color: var(--white);
-    font-family: var(--body);
-    min-height: 100vh;
-    overflow-x: hidden;
-    position: relative;
-  }
-
-  /* Scanline overlay */
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.04) 2px,
-      rgba(0,0,0,0.04) 4px
-    );
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* Animated ocean background */
-  .ocean-bg {
-    position: fixed;
-    inset: 0;
-    background:
-      radial-gradient(ellipse at 20% 80%, rgba(13,74,122,0.3) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, rgba(10,22,40,0.5) 0%, transparent 50%),
-      linear-gradient(180deg, #061020 0%, #0a1628 40%, #0d2845 100%);
-    z-index: -1;
-  }
-
-  /* HEADER */
-  header {
-    text-align: center;
-    padding: 18px 20px 12px;
-    border-bottom: 1px solid rgba(90,164,208,0.2);
-    position: relative;
-  }
-
-  .title-line {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-  }
-
-  h1 {
-    font-family: var(--display);
-    font-size: clamp(36px, 6vw, 72px);
-    letter-spacing: 0.12em;
-    color: var(--white);
-    text-shadow: 0 0 40px rgba(91,164,208,0.4), 0 2px 0 rgba(0,0,0,0.6);
-    line-height: 1;
-  }
-
-  .anchor-icon { font-size: 28px; opacity: 0.7; }
-
-  .subtitle {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.25em;
-    color: var(--foam);
-    opacity: 0.7;
-    margin-top: 4px;
-    text-transform: uppercase;
-  }
-
-  /* CONNECTION BAR */
-  #conn-bar {
-    background: rgba(10,22,40,0.8);
-    border-bottom: 1px solid rgba(90,164,208,0.15);
-    padding: 10px 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    font-family: var(--mono);
-    font-size: 12px;
-  }
-
-  #conn-bar label { color: var(--mist); letter-spacing: 0.1em; }
-
-  #conn-bar input {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(90,164,208,0.3);
-    color: var(--white);
-    padding: 5px 10px;
-    font-family: var(--mono);
-    font-size: 12px;
-    border-radius: 3px;
-    width: 200px;
-  }
-
-  #conn-bar input:focus { outline: none; border-color: var(--foam); }
-
-  .btn {
-    font-family: var(--display);
-    font-size: 16px;
-    letter-spacing: 0.1em;
-    padding: 6px 18px;
-    border: none;
-    cursor: pointer;
-    border-radius: 3px;
-    transition: all 0.15s;
-  }
-
-  .btn-primary {
-    background: var(--gold);
-    color: var(--navy);
-  }
-  .btn-primary:hover { background: var(--amber); transform: translateY(-1px); }
-
-  .btn-danger {
-    background: var(--red);
-    color: #fff;
-  }
-  .btn-danger:hover { background: var(--red-bright); }
-
-  .btn-ghost {
-    background: transparent;
-    color: var(--mist);
-    border: 1px solid rgba(90,164,208,0.3);
-    font-size: 14px;
-  }
-  .btn-ghost:hover { border-color: var(--foam); color: var(--white); }
-
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-
-  #status-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: #555;
-    display: inline-block;
-    box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
-    flex-shrink: 0;
-  }
-  #status-dot.connected { background: var(--green-bright); box-shadow: 0 0 8px var(--green); }
-  #status-dot.error { background: var(--red-bright); }
-
-  #status-msg {
-    color: var(--mist);
-    font-size: 12px;
-    flex: 1;
-  }
-
-  /* MAIN LAYOUT */
-  #app { padding: 16px 20px 30px; max-width: 1200px; margin: 0 auto; }
-
-  /* PHASE PANELS */
-  .phase-panel { display: none; }
-  .phase-panel.active { display: block; }
-
-  /* WAITING */
-  #phase-waiting {
-    text-align: center;
-    padding: 60px 20px;
-  }
-  .big-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.6; }
-  .phase-title {
-    font-family: var(--display);
-    font-size: 42px;
-    letter-spacing: 0.1em;
-    color: var(--foam);
-    margin-bottom: 8px;
-  }
-  .phase-sub {
-    font-size: 16px;
-    color: var(--mist);
-    opacity: 0.7;
-    letter-spacing: 0.05em;
-  }
-
-  /* PLACEMENT PHASE */
-  #phase-placing { }
-
-  .placing-layout {
-    display: flex;
-    gap: 24px;
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .ship-roster {
-    background: rgba(10,22,40,0.6);
-    border: 1px solid rgba(90,164,208,0.2);
-    border-radius: 6px;
-    padding: 16px;
-    min-width: 200px;
-    flex-shrink: 0;
-  }
-
-  .roster-title {
-    font-family: var(--display);
-    font-size: 22px;
-    letter-spacing: 0.1em;
-    color: var(--gold);
-    margin-bottom: 12px;
-    border-bottom: 1px solid rgba(212,168,67,0.2);
-    padding-bottom: 8px;
-  }
-
-  .ship-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 7px 8px;
-    border-radius: 4px;
-    cursor: grab;
-    margin-bottom: 6px;
-    border: 1px solid transparent;
-    transition: all 0.15s;
-    user-select: none;
-  }
-
-  .ship-item:hover { background: rgba(90,164,208,0.1); border-color: rgba(90,164,208,0.3); }
-  .ship-item.selected { background: rgba(212,168,67,0.15); border-color: var(--gold); }
-  .ship-item.placed { opacity: 0.4; cursor: not-allowed; }
-
-  .ship-visual {
-    display: flex;
-    gap: 2px;
-  }
-
-  .ship-cell-mini {
-    width: 12px;
-    height: 12px;
-    border-radius: 2px;
-    background: var(--steel);
-    border: 1px solid var(--foam);
-  }
-
-  .ship-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--white);
-    letter-spacing: 0.05em;
-  }
-
-  .ship-size-label {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--mist);
-  }
-
-  .rotate-btn {
-    margin-top: 12px;
-    width: 100%;
-    font-size: 14px;
-    padding: 8px;
-  }
-
-  .placement-hint {
-    font-size: 13px;
-    color: var(--mist);
-    margin-top: 14px;
-    line-height: 1.5;
-    opacity: 0.7;
-  }
-  .placement-hint kbd {
-    background: rgba(255,255,255,0.1);
-    padding: 1px 5px;
-    border-radius: 2px;
-    font-size: 11px;
-  }
-
-  /* GRIDS */
-  .grid-wrap {
-    flex: 1;
-  }
-
-  .grid-label {
-    font-family: var(--display);
-    font-size: 24px;
-    letter-spacing: 0.12em;
-    color: var(--foam);
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .player-badge {
-    font-size: 13px;
-    font-family: var(--mono);
-    background: rgba(90,164,208,0.15);
-    border: 1px solid rgba(90,164,208,0.3);
-    padding: 2px 8px;
-    border-radius: 3px;
-    color: var(--foam);
-  }
-
-  .grid-container {
-    position: relative;
-    display: inline-block;
-  }
-
-  table.grid {
-    border-collapse: collapse;
-    cursor: pointer;
-  }
-
-  table.grid th {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--mist);
-    width: 36px;
-    height: 20px;
-    text-align: center;
-    vertical-align: middle;
-    opacity: 0.6;
-    font-weight: 400;
-    letter-spacing: 0.05em;
-  }
-
-  table.grid td {
-    width: 36px;
-    height: 36px;
-    border: 1px solid rgba(42,80,128,0.5);
-    background: rgba(13,74,122,0.15);
-    text-align: center;
-    vertical-align: middle;
-    transition: background 0.1s;
-    position: relative;
-  }
-
-  table.grid td:hover { background: rgba(90,164,208,0.2); }
-  table.grid.no-hover td:hover { background: rgba(13,74,122,0.15); cursor: default; }
-
-  /* Cell states */
-  td.ship-own {
-    background: rgba(42,80,128,0.7) !important;
-    border-color: var(--foam) !important;
-  }
-  td.ship-own::after {
-    content: '';
-    position: absolute;
-    inset: 2px;
-    background: linear-gradient(135deg, rgba(91,164,208,0.4), rgba(42,80,128,0.6));
-    border-radius: 2px;
-  }
-  td.ship-preview {
-    background: rgba(212,168,67,0.25) !important;
-    border-color: var(--gold) !important;
-  }
-  td.ship-preview-bad {
-    background: rgba(192,57,43,0.35) !important;
-    border-color: var(--red-bright) !important;
-  }
-  td.hit {
-    background: rgba(192,57,43,0.5) !important;
-    border-color: var(--red-bright) !important;
-  }
-  td.hit::after {
-    content: '✕';
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--red-bright);
-    font-size: 20px;
-    font-weight: 700;
-    text-shadow: 0 0 8px var(--red-bright);
-  }
-  td.miss {
-    background: rgba(74,127,168,0.25) !important;
-    border-color: var(--miss) !important;
-  }
-  td.miss::after {
-    content: '·';
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--foam);
-    font-size: 22px;
-    opacity: 0.7;
-  }
-  td.sunk {
-    background: rgba(192,57,43,0.7) !important;
-    border-color: #ff0000 !important;
-    animation: sunk-pulse 0.5s ease 3;
-  }
-  td.sunk::after {
-    content: '✕';
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ff4444;
-    font-size: 20px;
-    font-weight: 700;
-    text-shadow: 0 0 12px #ff0000;
-  }
-  td.own-hit {
-    background: rgba(192,57,43,0.45) !important;
-    border-color: var(--red-bright) !important;
-  }
-  td.own-hit::after {
-    content: '✕';
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--red-bright);
-    font-size: 18px;
-    font-weight: 700;
-  }
-
-  @keyframes sunk-pulse {
-    0%, 100% { box-shadow: inset 0 0 0 2px #ff0000; }
-    50% { box-shadow: inset 0 0 12px 4px #ff0000; }
-  }
-
-  /* BATTLE LAYOUT */
-  .battle-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    align-items: start;
-  }
-
-  @media (max-width: 840px) {
-    .battle-layout { grid-template-columns: 1fr; }
-    table.grid td { width: 30px; height: 30px; }
-    table.grid th { width: 30px; }
-  }
-
-  .grid-section {
-    background: rgba(6,16,32,0.6);
-    border: 1px solid rgba(42,80,128,0.4);
-    border-radius: 8px;
-    padding: 16px;
-  }
-
-  .targeting-active { border-color: var(--gold); box-shadow: 0 0 20px rgba(212,168,67,0.15); }
-  .targeting-active table.grid td:hover { background: rgba(212,168,67,0.2) !important; cursor: crosshair; }
-
-  /* STATUS BANNER */
-  #status-banner {
-    margin: 14px 0;
-    padding: 12px 18px;
-    background: rgba(10,22,40,0.8);
-    border: 1px solid rgba(90,164,208,0.2);
-    border-radius: 6px;
-    font-family: var(--mono);
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  #status-banner .status-icon { font-size: 18px; }
-
-  .turn-indicator {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-  }
-
-  .turn-pip {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    background: var(--steel);
-  }
-  .turn-pip.my-turn {
-    background: var(--green-bright);
-    box-shadow: 0 0 8px var(--green);
-    animation: pulse-green 1s ease-in-out infinite;
-  }
-  .turn-pip.enemy-turn {
-    background: var(--red-bright);
-    animation: pulse-red 1.5s ease-in-out infinite;
-  }
-
-  @keyframes pulse-green {
-    0%, 100% { box-shadow: 0 0 4px var(--green); }
-    50% { box-shadow: 0 0 16px var(--green-bright); }
-  }
-  @keyframes pulse-red {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  /* SHIP HEALTH TRACKER */
-  .fleet-status {
-    margin-top: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .fleet-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-  }
-
-  .fleet-row .ship-visual-sm {
-    display: flex;
-    gap: 2px;
-  }
-
-  .fleet-cell {
-    width: 14px;
-    height: 14px;
-    border-radius: 2px;
-    border: 1px solid rgba(91,164,208,0.5);
-    background: rgba(42,80,128,0.5);
-    transition: all 0.2s;
-  }
-  .fleet-cell.intact { background: rgba(42,80,128,0.8); border-color: var(--foam); }
-  .fleet-cell.destroyed { background: rgba(192,57,43,0.6); border-color: var(--red-bright); }
-
-  /* GAME OVER */
-  #phase-gameover {
-    text-align: center;
-    padding: 50px 20px;
-  }
-
-  .go-title {
-    font-family: var(--display);
-    font-size: clamp(48px, 8vw, 96px);
-    letter-spacing: 0.08em;
-    margin-bottom: 8px;
-  }
-
-  .go-title.win { color: var(--gold); text-shadow: 0 0 40px rgba(212,168,67,0.5); }
-  .go-title.lose { color: var(--red-bright); text-shadow: 0 0 40px rgba(231,76,60,0.4); }
-
-  .go-sub {
-    font-size: 18px;
-    color: var(--mist);
-    margin-bottom: 30px;
-    letter-spacing: 0.05em;
-  }
-
-  /* CHAT */
-  #chat-panel {
-    margin-top: 16px;
-    background: rgba(6,16,32,0.7);
-    border: 1px solid rgba(42,80,128,0.3);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-
-  .chat-header {
-    font-family: var(--display);
-    font-size: 16px;
-    letter-spacing: 0.1em;
-    color: var(--mist);
-    padding: 8px 12px;
-    border-bottom: 1px solid rgba(42,80,128,0.2);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  #chat-log {
-    height: 100px;
-    overflow-y: auto;
-    padding: 8px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-
-  .chat-msg {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--mist);
-    opacity: 0.85;
-  }
-
-  .chat-msg .who { color: var(--foam); }
-  .chat-msg.system { color: var(--gold); opacity: 0.7; font-style: italic; }
-
-  .chat-input-row {
-    display: flex;
-    border-top: 1px solid rgba(42,80,128,0.2);
-  }
-
-  #chat-input {
-    flex: 1;
-    background: transparent;
-    border: none;
-    padding: 8px 12px;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--white);
-    outline: none;
-  }
-
-  #chat-input::placeholder { color: rgba(168,204,224,0.3); }
-
-  #chat-send {
-    background: rgba(42,80,128,0.4);
-    border: none;
-    border-left: 1px solid rgba(42,80,128,0.3);
-    color: var(--foam);
-    padding: 8px 14px;
-    cursor: pointer;
-    font-family: var(--mono);
-    font-size: 12px;
-    transition: background 0.15s;
-  }
-  #chat-send:hover { background: rgba(90,164,208,0.2); }
-
-  /* EXPLOSION OVERLAY */
-  .explosion-overlay {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 500;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .blast-text {
-    font-family: var(--display);
-    font-size: 72px;
-    letter-spacing: 0.1em;
-    animation: blast 0.8s ease forwards;
-    opacity: 0;
-  }
-
-  .blast-text.hit { color: var(--red-bright); text-shadow: 0 0 30px var(--red-bright); }
-  .blast-text.miss { color: var(--foam); text-shadow: 0 0 20px var(--foam); }
-  .blast-text.sunk { color: var(--gold); text-shadow: 0 0 40px var(--amber); }
-
-  @keyframes blast {
-    0%   { opacity: 0; transform: scale(0.5); }
-    25%  { opacity: 1; transform: scale(1.1); }
-    70%  { opacity: 1; transform: scale(1); }
-    100% { opacity: 0; transform: scale(1.2) translateY(-20px); }
-  }
-
-  /* UTIL */
-  .divider {
-    border: none;
-    border-top: 1px solid rgba(42,80,128,0.2);
-    margin: 14px 0;
-  }
-
-  .mt-16 { margin-top: 16px; }
-  .mt-8  { margin-top: 8px; }
-  .flex-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--deep); color:var(--white); font-family:var(--body); min-height:100vh; overflow-x:hidden; }
+  body::after { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px); pointer-events:none; z-index:0; }
+  .ocean-bg { position:fixed; inset:0; background:radial-gradient(ellipse at 20% 80%,rgba(13,74,122,0.3) 0%,transparent 50%),radial-gradient(ellipse at 80% 20%,rgba(10,22,40,0.5) 0%,transparent 50%),linear-gradient(180deg,#061020 0%,#0a1628 40%,#0d2845 100%); z-index:-1; }
+  header { text-align:center; padding:18px 20px 12px; border-bottom:1px solid rgba(90,164,208,0.2); }
+  .title-line { display:flex; align-items:center; justify-content:center; gap:16px; }
+  h1 { font-family:var(--display); font-size:clamp(36px,6vw,72px); letter-spacing:0.12em; color:var(--white); text-shadow:0 0 40px rgba(91,164,208,0.4),0 2px 0 rgba(0,0,0,0.6); line-height:1; }
+  .anchor-icon { font-size:28px; opacity:0.7; }
+  .subtitle { font-family:var(--mono); font-size:11px; letter-spacing:0.25em; color:var(--foam); opacity:0.7; margin-top:4px; text-transform:uppercase; }
+  #conn-bar { background:rgba(10,22,40,0.8); border-bottom:1px solid rgba(90,164,208,0.15); padding:10px 20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-family:var(--mono); font-size:12px; }
+  #conn-bar label { color:var(--mist); letter-spacing:0.1em; }
+  #conn-bar input { background:rgba(255,255,255,0.05); border:1px solid rgba(90,164,208,0.3); color:var(--white); padding:5px 10px; font-family:var(--mono); font-size:12px; border-radius:3px; }
+  #conn-bar input:focus { outline:none; border-color:var(--foam); }
+  .btn { font-family:var(--display); font-size:16px; letter-spacing:0.1em; padding:6px 18px; border:none; cursor:pointer; border-radius:3px; transition:all 0.15s; }
+  .btn-primary { background:var(--gold); color:var(--navy); }
+  .btn-primary:hover { background:var(--amber); transform:translateY(-1px); }
+  .btn-ghost { background:transparent; color:var(--mist); border:1px solid rgba(90,164,208,0.3); font-size:14px; }
+  .btn-ghost:hover { border-color:var(--foam); color:var(--white); }
+  .btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+  #status-dot { width:8px; height:8px; border-radius:50%; background:#555; display:inline-block; flex-shrink:0; }
+  #status-dot.connected { background:var(--green-bright); box-shadow:0 0 8px var(--green); }
+  #status-dot.error { background:var(--red-bright); }
+  #status-dot.connecting { background:var(--amber); }
+  #status-msg { color:var(--mist); font-size:12px; flex:1; }
+  #app { padding:16px 20px 30px; max-width:1200px; margin:0 auto; }
+  .phase-panel { display:none; }
+  .phase-panel.active { display:block; }
+  #phase-waiting { text-align:center; padding:60px 20px; }
+  .big-icon { font-size:64px; margin-bottom:16px; opacity:0.6; }
+  .phase-title { font-family:var(--display); font-size:42px; letter-spacing:0.1em; color:var(--foam); margin-bottom:8px; }
+  .phase-sub { font-size:16px; color:var(--mist); opacity:0.7; letter-spacing:0.05em; }
+  .placing-layout { display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+  .ship-roster { background:rgba(10,22,40,0.6); border:1px solid rgba(90,164,208,0.2); border-radius:6px; padding:16px; min-width:200px; flex-shrink:0; }
+  .roster-title { font-family:var(--display); font-size:22px; letter-spacing:0.1em; color:var(--gold); margin-bottom:12px; border-bottom:1px solid rgba(212,168,67,0.2); padding-bottom:8px; }
+  .ship-item { display:flex; align-items:center; gap:10px; padding:7px 8px; border-radius:4px; cursor:grab; margin-bottom:6px; border:1px solid transparent; transition:all 0.15s; user-select:none; }
+  .ship-item:hover { background:rgba(90,164,208,0.1); border-color:rgba(90,164,208,0.3); }
+  .ship-item.selected { background:rgba(212,168,67,0.15); border-color:var(--gold); }
+  .ship-item.placed { opacity:0.4; cursor:not-allowed; }
+  .ship-visual { display:flex; gap:2px; }
+  .ship-cell-mini { width:12px; height:12px; border-radius:2px; background:var(--steel); border:1px solid var(--foam); }
+  .ship-name { font-size:14px; font-weight:600; color:var(--white); letter-spacing:0.05em; }
+  .ship-size-label { font-family:var(--mono); font-size:11px; color:var(--mist); }
+  .rotate-btn { margin-top:12px; width:100%; font-size:14px; padding:8px; }
+  .placement-hint { font-size:13px; color:var(--mist); margin-top:14px; line-height:1.5; opacity:0.7; }
+  .grid-wrap { flex:1; }
+  .grid-label { font-family:var(--display); font-size:24px; letter-spacing:0.12em; color:var(--foam); margin-bottom:8px; display:flex; align-items:center; gap:10px; }
+  .player-badge { font-size:13px; font-family:var(--mono); background:rgba(90,164,208,0.15); border:1px solid rgba(90,164,208,0.3); padding:2px 8px; border-radius:3px; color:var(--foam); }
+  .grid-container { position:relative; display:inline-block; }
+  table.grid { border-collapse:collapse; cursor:pointer; }
+  table.grid th { font-family:var(--mono); font-size:11px; color:var(--mist); width:36px; height:20px; text-align:center; vertical-align:middle; opacity:0.6; font-weight:400; }
+  table.grid td { width:36px; height:36px; border:1px solid rgba(42,80,128,0.5); background:rgba(13,74,122,0.15); text-align:center; vertical-align:middle; transition:background 0.1s; position:relative; }
+  table.grid td:hover { background:rgba(90,164,208,0.2); }
+  table.grid.no-hover td:hover { background:rgba(13,74,122,0.15); cursor:default; }
+  td.ship-own { background:rgba(42,80,128,0.7) !important; border-color:var(--foam) !important; }
+  td.ship-own::after { content:''; position:absolute; inset:2px; background:linear-gradient(135deg,rgba(91,164,208,0.4),rgba(42,80,128,0.6)); border-radius:2px; }
+  td.ship-preview { background:rgba(212,168,67,0.25) !important; border-color:var(--gold) !important; }
+  td.ship-preview-bad { background:rgba(192,57,43,0.35) !important; border-color:var(--red-bright) !important; }
+  td.hit { background:rgba(192,57,43,0.5) !important; border-color:var(--red-bright) !important; }
+  td.hit::after { content:'✕'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--red-bright); font-size:20px; font-weight:700; }
+  td.miss { background:rgba(74,127,168,0.25) !important; border-color:var(--miss) !important; }
+  td.miss::after { content:'·'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--foam); font-size:22px; opacity:0.7; }
+  td.sunk { background:rgba(192,57,43,0.7) !important; border-color:#ff0000 !important; animation:sunk-pulse 0.5s ease 3; }
+  td.sunk::after { content:'✕'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#ff4444; font-size:20px; font-weight:700; }
+  td.own-hit { background:rgba(192,57,43,0.45) !important; border-color:var(--red-bright) !important; }
+  td.own-hit::after { content:'✕'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--red-bright); font-size:18px; font-weight:700; }
+  @keyframes sunk-pulse { 0%,100%{box-shadow:inset 0 0 0 2px #ff0000}50%{box-shadow:inset 0 0 12px 4px #ff0000} }
+  .battle-layout { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start; }
+  @media(max-width:840px){ .battle-layout{grid-template-columns:1fr} table.grid td{width:30px;height:30px} table.grid th{width:30px} }
+  .grid-section { background:rgba(6,16,32,0.6); border:1px solid rgba(42,80,128,0.4); border-radius:8px; padding:16px; }
+  .targeting-active { border-color:var(--gold); }
+  .targeting-active table.grid td:hover { background:rgba(212,168,67,0.2) !important; cursor:crosshair; }
+  #status-banner { margin:14px 0; padding:12px 18px; background:rgba(10,22,40,0.8); border:1px solid rgba(90,164,208,0.2); border-radius:6px; font-family:var(--mono); font-size:13px; display:flex; align-items:center; gap:12px; }
+  .turn-indicator { display:flex; align-items:center; gap:8px; margin-left:auto; }
+  .turn-pip { width:10px; height:10px; border-radius:50%; background:var(--steel); }
+  .turn-pip.my-turn { background:var(--green-bright); animation:pulse-green 1s ease-in-out infinite; }
+  .turn-pip.enemy-turn { background:var(--red-bright); animation:pulse-red 1.5s ease-in-out infinite; }
+  @keyframes pulse-green { 0%,100%{box-shadow:0 0 4px var(--green)}50%{box-shadow:0 0 16px var(--green-bright)} }
+  @keyframes pulse-red { 0%,100%{opacity:1}50%{opacity:0.4} }
+  .fleet-status { margin-top:12px; display:flex; flex-direction:column; gap:4px; }
+  .fleet-row { display:flex; align-items:center; gap:8px; font-size:13px; }
+  .fleet-row .ship-visual-sm { display:flex; gap:2px; }
+  .fleet-cell { width:14px; height:14px; border-radius:2px; border:1px solid rgba(91,164,208,0.5); }
+  .fleet-cell.intact { background:rgba(42,80,128,0.8); border-color:var(--foam); }
+  .fleet-cell.destroyed { background:rgba(192,57,43,0.6); border-color:var(--red-bright); }
+  #phase-gameover { text-align:center; padding:50px 20px; }
+  .go-title { font-family:var(--display); font-size:clamp(48px,8vw,96px); letter-spacing:0.08em; margin-bottom:8px; }
+  .go-title.win { color:var(--gold); text-shadow:0 0 40px rgba(212,168,67,0.5); }
+  .go-title.lose { color:var(--red-bright); text-shadow:0 0 40px rgba(231,76,60,0.4); }
+  .go-sub { font-size:18px; color:var(--mist); margin-bottom:30px; }
+  #chat-panel { margin-top:16px; background:rgba(6,16,32,0.7); border:1px solid rgba(42,80,128,0.3); border-radius:6px; overflow:hidden; }
+  .chat-header { font-family:var(--display); font-size:16px; letter-spacing:0.1em; color:var(--mist); padding:8px 12px; border-bottom:1px solid rgba(42,80,128,0.2); }
+  #chat-log { height:100px; overflow-y:auto; padding:8px 12px; display:flex; flex-direction:column; gap:3px; }
+  .chat-msg { font-family:var(--mono); font-size:12px; color:var(--mist); opacity:0.85; }
+  .chat-msg .who { color:var(--foam); }
+  .chat-msg.system { color:var(--gold); opacity:0.7; font-style:italic; }
+  .chat-input-row { display:flex; border-top:1px solid rgba(42,80,128,0.2); }
+  #chat-input { flex:1; background:transparent; border:none; padding:8px 12px; font-family:var(--mono); font-size:12px; color:var(--white); outline:none; }
+  #chat-input::placeholder { color:rgba(168,204,224,0.3); }
+  #chat-send { background:rgba(42,80,128,0.4); border:none; border-left:1px solid rgba(42,80,128,0.3); color:var(--foam); padding:8px 14px; cursor:pointer; font-family:var(--mono); font-size:12px; }
+  #chat-send:hover { background:rgba(90,164,208,0.2); }
+  .explosion-overlay { position:fixed; inset:0; pointer-events:none; z-index:500; display:flex; align-items:center; justify-content:center; }
+  .blast-text { font-family:var(--display); font-size:72px; letter-spacing:0.1em; animation:blast 0.8s ease forwards; opacity:0; }
+  .blast-text.hit { color:var(--red-bright); }
+  .blast-text.miss { color:var(--foam); }
+  .blast-text.sunk { color:var(--gold); }
+  @keyframes blast { 0%{opacity:0;transform:scale(0.5)}25%{opacity:1;transform:scale(1.1)}70%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.2) translateY(-20px)} }
+  .divider { border:none; border-top:1px solid rgba(42,80,128,0.2); margin:14px 0; }
+  .mt-8 { margin-top:8px; }
+  .flex-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 </style>
 </head>
 <body>
@@ -708,37 +139,30 @@
   <div class="subtitle">naval warfare · multiplayer · tactical grid combat</div>
 </header>
 
-<!-- CONNECTION BAR -->
 <div id="conn-bar">
   <span id="status-dot"></span>
   <label>ABLY KEY:</label>
-  <input type="text" id="ably-key" placeholder="Paste your Ably API key here" style="width:260px">
+  <input type="text" id="ably-key" placeholder="Paste Ably API key here" style="width:260px">
   <label>ROOM:</label>
   <input type="text" id="room-id" value="fleet1" style="width:80px">
   <button class="btn btn-primary" id="connect-btn" onclick="connectAbly()">CONNECT</button>
-  <span id="status-msg">Enter your Ably API key</span>
+  <span id="status-msg">Enter your Ably API key to begin</span>
 </div>
 
 <div id="app">
-
-  <!-- WAITING PHASE -->
   <div id="phase-waiting" class="phase-panel active">
     <div class="big-icon">🚢</div>
     <div class="phase-title">AWAITING ORDERS</div>
-    <div class="phase-sub">Connect to the server and wait for your opponent...</div>
+    <div class="phase-sub" id="waiting-sub">Enter your API key and connect...</div>
   </div>
 
-  <!-- PLACEMENT PHASE -->
   <div id="phase-placing" class="phase-panel">
     <div class="placing-layout">
       <div class="ship-roster">
         <div class="roster-title">YOUR FLEET</div>
         <div id="ship-list"></div>
         <button class="btn btn-ghost rotate-btn" onclick="toggleRotation()">↕ ROTATE SHIP</button>
-        <div class="placement-hint">
-          Click ship → click grid to place<br>
-          <kbd>R</kbd> to rotate &nbsp; <kbd>Click placed</kbd> to remove
-        </div>
+        <div class="placement-hint">Tap a ship, then tap the grid to place it</div>
         <hr class="divider">
         <button class="btn btn-primary" id="confirm-place-btn" onclick="confirmPlacement()" disabled style="width:100%;margin-top:4px">DEPLOY FLEET</button>
         <button class="btn btn-ghost mt-8" onclick="randomPlacement()" style="width:100%;font-size:14px">RANDOM PLACEMENT</button>
@@ -750,10 +174,9 @@
     </div>
   </div>
 
-  <!-- BATTLE PHASE -->
   <div id="phase-battle" class="phase-panel">
     <div id="status-banner">
-      <span class="status-icon" id="banner-icon">⚓</span>
+      <span id="banner-icon">⚓</span>
       <span id="banner-text">Battle in progress</span>
       <div class="turn-indicator">
         <div class="turn-pip" id="turn-pip"></div>
@@ -782,638 +205,510 @@
     </div>
   </div>
 
-  <!-- GAME OVER PHASE -->
   <div id="phase-gameover" class="phase-panel">
     <div id="go-title" class="go-title win">VICTORY</div>
     <div id="go-sub" class="go-sub">Your fleet is triumphant!</div>
-    <div class="flex-row" style="justify-content:center;margin-top:20px;gap:12px">
+    <div class="flex-row" style="justify-content:center;margin-top:20px">
       <button class="btn btn-primary" onclick="resetGame()">NEW GAME</button>
     </div>
   </div>
-
 </div>
 
-<!-- EXPLOSION OVERLAY -->
 <div class="explosion-overlay" id="explosion-overlay"></div>
 
 <script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
 <script>
-// ─── CONFIG ──────────────────────────────────────────────────────────────────
 const COLS = ['A','B','C','D','E','F','G','H','I','J'];
 const ROWS = [1,2,3,4,5,6,7,8,9,10];
 const SHIP_DEFS = [
-  { name: 'Carrier',    size: 5 },
-  { name: 'Battleship', size: 4 },
-  { name: 'Cruiser',    size: 3 },
-  { name: 'Submarine',  size: 3 },
-  { name: 'Destroyer',  size: 2 },
+  { name:'Carrier',    size:5 },
+  { name:'Battleship', size:4 },
+  { name:'Cruiser',    size:3 },
+  { name:'Submarine',  size:3 },
+  { name:'Destroyer',  size:2 },
 ];
 
-// ─── STATE ───────────────────────────────────────────────────────────────────
-let ablyClient = null;
-let channel = null;
-let myPlayerId = null;   // 'p1' or 'p2'
-let myClientId = null;   // unique session id
-let phase = 'waiting';
-let myShips = [];
+// ── STATE ────────────────────────────────────────────────────────────────────
+let ably        = null;
+let ch          = null;
+let myId        = null;   // unique client id for this session
+let myRole      = null;   // 'p1' or 'p2'
+let phase       = 'waiting';
+let myShips     = [];
 let placedShips = [];
-let selectedShipIdx = null;
-let horizontal = true;
-let myShots = [];
-let enemyShots = [];
-let sunkByMe = [];
-let mySunk = [];
-let opponentReady = false;
-let iReady = false;
-let currentTurn = 'p1';
-let opponentShips = [];  // received after both ready
+let selShip     = null;
+let horizontal  = true;
+let myShots     = [];
+let enemyShots  = [];
+let sunkByMe    = [];
+let mySunk      = [];
+let iReady      = false;
+let oppReady    = false;
+let turn        = 'p1';
 
-// ─── ABLY CONNECTION ─────────────────────────────────────────────────────────
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function setStatus(state, msg) {
+  document.getElementById('status-dot').className = state;
+  document.getElementById('status-msg').textContent = msg;
+}
+function showPhase(name) {
+  document.querySelectorAll('.phase-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('phase-' + name).classList.add('active');
+}
+function pub(data) {
+  if (ch) ch.publish('g', Object.assign({ from: myId }, data));
+}
+function log(text) {
+  const el = document.getElementById('chat-log');
+  const d = document.createElement('div');
+  d.className = 'chat-msg system';
+  d.textContent = text;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+function chatMsg(who, text) {
+  const el = document.getElementById('chat-log');
+  const d = document.createElement('div');
+  d.className = 'chat-msg';
+  d.innerHTML = '<span class="who">' + who.toUpperCase() + ':</span> ' + text.replace(/</g,'&lt;');
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── CONNECT ───────────────────────────────────────────────────────────────────
 async function connectAbly() {
   const key  = document.getElementById('ably-key').value.trim();
   const room = document.getElementById('room-id').value.trim() || 'default';
   if (!key) { setStatus('error', 'Please enter your Ably API key'); return; }
 
-  setStatus('connecting', 'Connecting...');
   document.getElementById('connect-btn').disabled = true;
+  setStatus('connecting', 'Connecting...');
 
   try {
-    if (ablyClient) { try { ablyClient.close(); } catch(e){} ablyClient = null; channel = null; }
+    if (ably) { try { ably.close(); } catch(e){} }
+    myId = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+    myRole = null;
 
-    // Generate a unique ID for this client session
-    myClientId = 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    ably = new Ably.Realtime({ key: key });
 
-    ablyClient = new Ably.Realtime({ key });
-
-    // Wait for connected or failed
+    // Wait for connection
     await new Promise((resolve, reject) => {
-      let done = false;
-      const ok  = () => { if (!done) { done = true; resolve(); } };
-      const bad = (msg) => { if (!done) { done = true; reject(new Error(msg)); } };
-      ablyClient.connection.on((s) => {
-        if (s.current === 'connected') ok();
-        if (s.current === 'failed')    bad(s.reason ? s.reason.message : 'Connection failed — check API key');
-        if (s.current === 'suspended') bad('Suspended — check internet');
-      });
-      setTimeout(() => bad('Timed out — check internet'), 15000);
+      let settled = false;
+      function settle(fn, val) { if (!settled) { settled = true; fn(val); } }
+      ably.connection.on('connected',  () => settle(resolve));
+      ably.connection.on('failed',     (s) => settle(reject, new Error(s.reason ? s.reason.message : 'Auth failed')));
+      ably.connection.on('suspended',  ()  => settle(reject, new Error('Suspended — check internet')));
+      setTimeout(() => settle(reject, new Error('Timed out after 15s')), 15000);
     });
 
-    setStatus('connected', 'Connected — joining room: ' + room);
-    channel = ablyClient.channels.get('battleships-' + room);
+    setStatus('connected', 'Connected');
+    ch = ably.channels.get('bs-' + room);
 
-    // Subscribe to all game messages FIRST
-    channel.subscribe(handleAblyMessage);
+    // Subscribe BEFORE publishing anything
+    await new Promise((resolve, reject) => {
+      ch.subscribe(onMessage, (err) => err ? reject(err) : resolve());
+    });
 
-    // Announce ourselves — whoever is p1 will respond, or we become p1
-    channel.publish('game', { type: 'hello', from: myClientId });
+    // Announce arrival — p1 (if in room) will respond with 'welcome'
+    pub({ type: 'hello' });
 
-    // Wait briefly to see if p1 is already there
-    await new Promise(r => setTimeout(r, 1500));
+    // Give p1 2 seconds to respond; if no response we are p1
+    await new Promise(r => setTimeout(r, 2000));
 
-    if (!myPlayerId) {
-      // Nobody responded — we are p1
-      myPlayerId = 'p1';
-      addChat('system', 'You are Player 1 — waiting for opponent...');
+    if (!myRole) {
+      myRole = 'p1';
       document.getElementById('my-badge').textContent = 'P1';
       document.getElementById('connect-btn').textContent = 'CONNECTED';
+      setStatus('connected', 'You are Player 1 — waiting for opponent');
       showPhase('waiting');
-      document.querySelector('#phase-waiting .phase-sub').textContent = 'Waiting for opponent to join this room...';
+      document.getElementById('waiting-sub').textContent = 'Share the room name "' + room + '" with your opponent';
     }
 
   } catch(e) {
     setStatus('error', e.message);
     document.getElementById('connect-btn').disabled = false;
     document.getElementById('connect-btn').textContent = 'CONNECT';
-    if (ablyClient) { try { ablyClient.close(); } catch(err){} ablyClient = null; }
+    if (ably) { try { ably.close(); } catch(_){} ably = null; ch = null; }
   }
 }
 
-// ─── PUBLISH HELPER ──────────────────────────────────────────────────────────
-function publish(msg) {
-  if (channel) channel.publish('game', msg);
-}
+// ── MESSAGE ROUTER ────────────────────────────────────────────────────────────
+function onMessage(msg) {
+  const d = msg.data;
+  if (!d || d.from === myId) return;  // ignore own messages
 
-// ─── MESSAGE HANDLER ─────────────────────────────────────────────────────────
-function handleAblyMessage(msg) {
-  const data = msg.data;
-
-  // Ignore our own messages
-  if (data.from === myClientId) return;
-
-  switch (data.type) {
+  switch(d.type) {
 
     case 'hello':
-      // Someone joined — if we are p1, welcome them as p2
-      if (myPlayerId === 'p1') {
-        channel.publish('game', { type: 'welcome', from: myClientId, newPlayer: data.from });
+      // Somebody joined. If I am p1, welcome them.
+      if (myRole === 'p1') {
+        pub({ type: 'welcome', for: d.from });
       }
       break;
 
     case 'welcome':
-      // We are p2 — the welcome is addressed to us
-      if (!myPlayerId && data.newPlayer === myClientId) {
-        myPlayerId = 'p2';
+      // The welcome is for me — I am p2
+      if (!myRole && d.for === myId) {
+        myRole = 'p2';
         document.getElementById('my-badge').textContent = 'P2';
         document.getElementById('connect-btn').textContent = 'CONNECTED';
-        addChat('system', 'You are Player 2 — opponent is waiting!');
-        startPlacingPhase();
-        channel.publish('game', { type: 'p2_ready', from: myClientId });
+        setStatus('connected', 'You are Player 2');
+        log('Opponent found! Place your ships.');
+        startPlacing();
+        pub({ type: 'p2here' });
       }
       break;
 
-    case 'p2_ready':
-      // p1 sees p2 confirmed
-      if (myPlayerId === 'p1') {
-        addChat('system', 'Opponent connected! Place your ships.');
-        startPlacingPhase();
+    case 'p2here':
+      // p1 hears that p2 arrived
+      if (myRole === 'p1') {
+        log('Opponent connected! Place your ships.');
+        startPlacing();
       }
       break;
 
     case 'ships_placed':
-      if (data.player !== myPlayerId) {
-        opponentReady = true;
-        opponentShips = data.ships; // store opponent ships for hit detection
-        addChat('system', 'Opponent has deployed their fleet...');
-        if (iReady) startBattlePhase('p1');
+      if (d.player !== myRole) {
+        oppReady = true;
+        log('Opponent deployed their fleet.');
+        if (iReady) startBattle();
       }
       break;
 
     case 'fire':
-      if (data.target === myPlayerId) {
-        handleIncomingFire(data);
-      }
+      // Opponent fired at me — I process and respond
+      if (d.target === myRole) handleIncoming(d);
       break;
 
-    case 'shot_result':
-      if (data.shooter === myPlayerId) {
-        handleMyFireResult(data);
-      }
+    case 'result':
+      // Result of MY shot, sent back by opponent
+      if (d.shooter === myRole) handleResult(d);
       break;
 
     case 'chat':
-      if (data.player !== myPlayerId) {
-        addChat(data.player, data.text);
-      }
+      chatMsg(d.player, d.text);
       break;
   }
 }
 
-// ─── INCOMING FIRE (opponent shot at me) ─────────────────────────────────────
-function handleIncomingFire(data) {
-  const col = data.col;
-  const row = data.row;
-
-  // Check hit against my ships
-  let hit = false;
-  let sunkShip = null;
+// ── FIRE HANDLING ─────────────────────────────────────────────────────────────
+function handleIncoming(d) {
+  const col = d.col, row = d.row;
+  let hit = false, sunkShip = null;
 
   for (const ship of myShips) {
     if (ship.cells.some(c => c.col === col && c.row === row)) {
       hit = true;
-      // mark cell as hit on ship
       ship.cells.forEach(c => { if (c.col === col && c.row === row) c.hit = true; });
-      // check if whole ship sunk
-      if (ship.cells.every(c => c.hit)) sunkShip = ship.cells;
+      if (ship.cells.every(c => c.hit)) sunkShip = ship.cells.map(c => ({col:c.col,row:c.row}));
       break;
     }
   }
 
   enemyShots.push({ col, row, hit });
-
-  // Check if all my ships sunk
-  const allMySunk = myShips.every(s => s.cells.every(c => c.hit));
-
-  // Reply with result
-  const result = {
-    type: 'shot_result',
-    shooter: data.shooter,
-    target: myPlayerId,
-    col, row, hit,
-    sunk: sunkShip || null,
-    gameover: allMySunk,
-    winner: allMySunk ? data.shooter : null,
-    next_turn: hit ? data.shooter : myPlayerId
-  };
-
-  publish(result);
-  currentTurn = result.next_turn;
+  const allGone = myShips.every(s => s.cells.every(c => c.hit));
+  const nextTurn = hit ? d.shooter : myRole;
 
   // Update my defence grid
-  const td = document.querySelector(`#my-battle-grid td[data-col="${col}"][data-row="${row}"]`);
+  const td = document.querySelector('#my-battle-grid td[data-col="'+col+'"][data-row="'+row+'"]');
   if (td) {
     if (sunkShip) {
       sunkShip.forEach(c => {
-        const t = document.querySelector(`#my-battle-grid td[data-col="${c.col}"][data-row="${c.row}"]`);
+        const t = document.querySelector('#my-battle-grid td[data-col="'+c.col+'"][data-row="'+c.row+'"]');
         if (t) t.className = 'own-hit sunk';
       });
       mySunk.push(sunkShip);
-      addChat('system', '☠ Enemy sunk your ship!');
+      log('☠ Enemy sunk your ship!');
     } else {
       td.className = hit ? 'own-hit' : 'miss';
     }
   }
+  buildFleet('my-fleet-status', 'mine');
 
-  buildFleetStatus('my-fleet-status', 'mine');
+  // Send result back to opponent
+  pub({ type:'result', shooter:d.shooter, target:myRole, col, row, hit, sunk:sunkShip, gameover:allGone, winner:allGone?d.shooter:null, next:nextTurn });
 
-  if (allMySunk) {
-    setTimeout(() => showGameOver(false), 600);
-  } else {
-    updateTurn(result.next_turn);
-  }
+  turn = nextTurn;
+  if (allGone) { setTimeout(() => showGameOver(false), 500); }
+  else { updateTurn(); }
 }
 
-// ─── MY FIRE RESULT (server reply to my shot) ────────────────────────────────
-function handleMyFireResult(data) {
-  const { col, row, hit, sunk, gameover, winner, next_turn } = data;
-
-  myShots.push({ col, row, hit });
-
-  const td = document.querySelector(`#enemy-grid td[data-col="${col}"][data-row="${row}"]`);
+function handleResult(d) {
+  myShots.push({ col:d.col, row:d.row, hit:d.hit });
+  const td = document.querySelector('#enemy-grid td[data-col="'+d.col+'"][data-row="'+d.row+'"]');
   if (td) {
-    if (sunk) {
-      sunk.forEach(c => {
-        const t = document.querySelector(`#enemy-grid td[data-col="${c.col}"][data-row="${c.row}"]`);
+    if (d.sunk) {
+      d.sunk.forEach(c => {
+        const t = document.querySelector('#enemy-grid td[data-col="'+c.col+'"][data-row="'+c.row+'"]');
         if (t) t.className = 'sunk';
       });
-      sunkByMe.push(sunk);
-      showBlast('SUNK!', 'sunk');
-      addChat('system', `💥 You sunk their ${sunk.length >= 5 ? 'Carrier' : sunk.length >= 4 ? 'Battleship' : sunk.length >= 3 ? 'Cruiser/Sub' : 'Destroyer'}!`);
+      sunkByMe.push(d.sunk);
+      blast('SUNK!','sunk');
+      log('💥 You sunk their ' + (d.sunk.length>=5?'Carrier':d.sunk.length>=4?'Battleship':d.sunk.length>=3?'Cruiser/Sub':'Destroyer') + '!');
     } else {
-      td.className = hit ? 'hit' : 'miss';
-      showBlast(hit ? 'HIT!' : 'MISS', hit ? 'hit' : 'miss');
+      td.className = d.hit ? 'hit' : 'miss';
+      blast(d.hit?'HIT!':'MISS', d.hit?'hit':'miss');
     }
   }
-
-  buildFleetStatus('enemy-fleet-status', 'enemy');
-
-  if (gameover) {
-    setTimeout(() => showGameOver(winner === myPlayerId), 600);
-  } else {
-    currentTurn = next_turn;
-    updateTurn(next_turn);
-  }
+  buildFleet('enemy-fleet-status','enemy');
+  if (d.gameover) { setTimeout(() => showGameOver(true), 500); }
+  else { turn = d.next; updateTurn(); }
 }
 
-function setStatus(state, msg) {
-  const dot = document.getElementById('status-dot');
-  dot.className = state;
-  document.getElementById('status-msg').textContent = msg;
-}
-
-// ─── PHASE: PLACING ──────────────────────────────────────────────────────────
-function startPlacingPhase() {
-  phase = 'placing';
-  myShips = [];
-  placedShips = [];
-  selectedShipIdx = null;
-  horizontal = true;
-  iReady = false;
-  opponentReady = false;
+// ── PLACING ───────────────────────────────────────────────────────────────────
+function startPlacing() {
+  phase = 'placing'; myShips = []; placedShips = []; selShip = null; horizontal = true;
+  iReady = false; oppReady = false;
   showPhase('placing');
   buildShipList();
-  buildGrid('my-grid-container', 'my-grid', false);
+  buildGrid('my-grid-container','my-grid');
   attachPlacingEvents();
 }
 
 function buildShipList() {
   const el = document.getElementById('ship-list');
   el.innerHTML = '';
-  SHIP_DEFS.forEach((s, i) => {
-    const div = document.createElement('div');
-    div.className = 'ship-item';
-    div.id = `ship-item-${i}`;
-    div.innerHTML = `
-      <div class="ship-visual">${'<div class="ship-cell-mini"></div>'.repeat(s.size)}</div>
-      <div>
-        <div class="ship-name">${s.name}</div>
-        <div class="ship-size-label">${s.size} cells</div>
-      </div>`;
-    div.onclick = () => selectShip(i);
-    el.appendChild(div);
+  SHIP_DEFS.forEach((s,i) => {
+    const d = document.createElement('div');
+    d.className = 'ship-item'; d.id = 'si-'+i;
+    d.innerHTML = '<div class="ship-visual">' + '<div class="ship-cell-mini"></div>'.repeat(s.size) + '</div><div><div class="ship-name">'+s.name+'</div><div class="ship-size-label">'+s.size+' cells</div></div>';
+    d.onclick = () => selectShip(i);
+    el.appendChild(d);
   });
 }
 
 function selectShip(i) {
   if (placedShips.includes(i)) return;
-  selectedShipIdx = i;
-  document.querySelectorAll('.ship-item').forEach(el => el.classList.remove('selected'));
-  document.getElementById(`ship-item-${i}`)?.classList.add('selected');
+  selShip = i;
+  document.querySelectorAll('.ship-item').forEach(e => e.classList.remove('selected'));
+  document.getElementById('si-'+i).classList.add('selected');
 }
 
 function toggleRotation() {
   horizontal = !horizontal;
-  const btn = document.querySelector('.rotate-btn');
-  btn.textContent = horizontal ? '↕ ROTATE SHIP' : '↔ ROTATE SHIP';
-  updatePreview(-1, -1);
+  document.querySelector('.rotate-btn').textContent = horizontal ? '↕ ROTATE SHIP' : '↔ ROTATE SHIP';
 }
 
-document.addEventListener('keydown', e => {
-  if (e.key === 'r' || e.key === 'R') toggleRotation();
-});
+document.addEventListener('keydown', e => { if (e.key==='r'||e.key==='R') toggleRotation(); });
 
 function attachPlacingEvents() {
   const grid = document.getElementById('my-grid');
   if (!grid) return;
   grid.querySelectorAll('td').forEach(td => {
-    td.addEventListener('mouseenter', () => {
-      const col = td.dataset.col;
-      const row = parseInt(td.dataset.row);
-      updatePreview(col, row);
-    });
-    td.addEventListener('mouseleave', () => clearPreview());
-    td.addEventListener('click', () => {
-      const col = td.dataset.col;
-      const row = parseInt(td.dataset.row);
-      handleGridClick(col, row);
-    });
+    td.addEventListener('mouseenter', () => preview(td.dataset.col, +td.dataset.row));
+    td.addEventListener('mouseleave', clearPreview);
+    td.addEventListener('click',      () => placeShip(td.dataset.col, +td.dataset.row));
   });
   grid.addEventListener('mouseleave', clearPreview);
 }
 
-function handleGridClick(col, row) {
-  if (selectedShipIdx === null) return;
-  const ship = SHIP_DEFS[selectedShipIdx];
-  const cells = getShipCells(col, row, ship.size, horizontal);
-  if (!cells || !isValidPlacement(cells)) return;
-  myShips.push({ name: ship.name, size: ship.size, cells });
-  placedShips.push(selectedShipIdx);
-  document.getElementById(`ship-item-${selectedShipIdx}`)?.classList.add('placed');
-  clearPreview();
-  renderMyGrid();
-  selectedShipIdx = null;
-  document.querySelectorAll('.ship-item').forEach(el => el.classList.remove('selected'));
-  if (placedShips.length === SHIP_DEFS.length) {
-    document.getElementById('confirm-place-btn').disabled = false;
-  }
-}
-
-function getShipCells(col, row, size, horiz) {
-  const cells = [];
-  const colIdx = COLS.indexOf(col);
-  for (let i = 0; i < size; i++) {
-    const c = horiz ? COLS[colIdx + i] : col;
-    const r = horiz ? row : row + i;
-    if (!c || r > 10) return null;
-    cells.push({ col: c, row: r });
+function shipCells(col, row, size, horiz) {
+  const cells = [], ci = COLS.indexOf(col);
+  for (let i=0; i<size; i++) {
+    const c = horiz ? COLS[ci+i] : col;
+    const r = horiz ? row : row+i;
+    if (!c || r>10) return null;
+    cells.push({col:c, row:r});
   }
   return cells;
 }
 
-function isValidPlacement(cells) {
-  return cells && cells.every(c => {
-    return !myShips.some(s => s.cells.some(sc => sc.col === c.col && sc.row === c.row));
-  });
+function validPlacement(cells) {
+  return cells && cells.every(c => !myShips.some(s => s.cells.some(sc => sc.col===c.col && sc.row===c.row)));
 }
 
-function updatePreview(col, row) {
+function preview(col, row) {
   clearPreview();
-  if (selectedShipIdx === null || col === -1) return;
-  const ship = SHIP_DEFS[selectedShipIdx];
-  const cells = getShipCells(col, row, ship.size, horizontal);
+  if (selShip===null) return;
+  const cells = shipCells(col, row, SHIP_DEFS[selShip].size, horizontal);
   if (!cells) return;
-  const valid = isValidPlacement(cells);
+  const ok = validPlacement(cells);
   cells.forEach(c => {
-    const td = document.querySelector(`#my-grid td[data-col="${c.col}"][data-row="${c.row}"]`);
-    if (td) td.classList.add(valid ? 'ship-preview' : 'ship-preview-bad');
+    const td = document.querySelector('#my-grid td[data-col="'+c.col+'"][data-row="'+c.row+'"]');
+    if (td) td.classList.add(ok ? 'ship-preview' : 'ship-preview-bad');
   });
 }
 
 function clearPreview() {
-  document.querySelectorAll('.ship-preview, .ship-preview-bad').forEach(el => {
-    el.classList.remove('ship-preview', 'ship-preview-bad');
-  });
+  document.querySelectorAll('.ship-preview,.ship-preview-bad').forEach(e => e.classList.remove('ship-preview','ship-preview-bad'));
+}
+
+function placeShip(col, row) {
+  if (selShip===null) return;
+  const ship = SHIP_DEFS[selShip];
+  const cells = shipCells(col, row, ship.size, horizontal);
+  if (!cells || !validPlacement(cells)) return;
+  myShips.push({name:ship.name, size:ship.size, cells});
+  placedShips.push(selShip);
+  document.getElementById('si-'+selShip).classList.add('placed');
+  clearPreview();
+  renderMyGrid();
+  selShip = null;
+  document.querySelectorAll('.ship-item').forEach(e => e.classList.remove('selected'));
+  if (placedShips.length === SHIP_DEFS.length) document.getElementById('confirm-place-btn').disabled = false;
 }
 
 function renderMyGrid() {
   document.querySelectorAll('#my-grid td').forEach(td => td.classList.remove('ship-own'));
-  myShips.forEach(ship => {
-    ship.cells.forEach(c => {
-      const td = document.querySelector(`#my-grid td[data-col="${c.col}"][data-row="${c.row}"]`);
-      if (td) td.classList.add('ship-own');
-    });
-  });
+  myShips.forEach(s => s.cells.forEach(c => {
+    const td = document.querySelector('#my-grid td[data-col="'+c.col+'"][data-row="'+c.row+'"]');
+    if (td) td.classList.add('ship-own');
+  }));
 }
 
 function randomPlacement() {
-  myShips = [];
-  placedShips = [];
-  document.querySelectorAll('.ship-item').forEach(el => el.classList.remove('placed', 'selected'));
+  myShips=[]; placedShips=[];
+  document.querySelectorAll('.ship-item').forEach(e => e.classList.remove('placed','selected'));
   document.getElementById('confirm-place-btn').disabled = true;
-
-  SHIP_DEFS.forEach((ship, i) => {
-    let placed = false, tries = 0;
-    while (!placed && tries < 200) {
+  SHIP_DEFS.forEach((ship,i) => {
+    let ok=false, tries=0;
+    while(!ok && tries<300) {
       tries++;
-      const horiz = Math.random() > 0.5;
-      const col = COLS[Math.floor(Math.random() * (horiz ? 10 - ship.size + 1 : 10))];
-      const row = Math.floor(Math.random() * (horiz ? 10 : 10 - ship.size + 1)) + 1;
-      const cells = getShipCells(col, row, ship.size, horiz);
-      if (cells && isValidPlacement(cells)) {
-        myShips.push({ name: ship.name, size: ship.size, cells });
+      const h = Math.random()>0.5;
+      const col = COLS[Math.floor(Math.random()*(h?10-ship.size+1:10))];
+      const row = Math.floor(Math.random()*(h?10:10-ship.size+1))+1;
+      const cells = shipCells(col,row,ship.size,h);
+      if (cells && validPlacement(cells)) {
+        myShips.push({name:ship.name,size:ship.size,cells});
         placedShips.push(i);
-        document.getElementById(`ship-item-${i}`)?.classList.add('placed');
-        placed = true;
+        document.getElementById('si-'+i).classList.add('placed');
+        ok=true;
       }
     }
   });
-
   renderMyGrid();
-  if (placedShips.length === SHIP_DEFS.length) {
-    document.getElementById('confirm-place-btn').disabled = false;
-  }
+  if (placedShips.length===SHIP_DEFS.length) document.getElementById('confirm-place-btn').disabled=false;
 }
 
 function confirmPlacement() {
   if (myShips.length < SHIP_DEFS.length) return;
   iReady = true;
-  publish({ type: 'ships_placed', player: myPlayerId, ships: myShips.map(s => s.cells) });
+  pub({ type:'ships_placed', player:myRole, ships:myShips.map(s=>s.cells) });
   document.getElementById('confirm-place-btn').disabled = true;
   document.getElementById('confirm-place-btn').textContent = 'FLEET DEPLOYED';
-  addChat('system', 'Fleet deployed — waiting for opponent...');
-  if (opponentReady) startBattlePhase('p1');
+  log('Fleet deployed — waiting for opponent...');
+  if (oppReady) startBattle();
 }
 
-// ─── PHASE: BATTLE ───────────────────────────────────────────────────────────
-function startBattlePhase(firstTurn) {
-  phase = 'battle';
-  myShots = [];
-  enemyShots = [];
-  sunkByMe = [];
-  mySunk = [];
-  currentTurn = firstTurn;
+// ── BATTLE ────────────────────────────────────────────────────────────────────
+function startBattle() {
+  phase='battle'; myShots=[]; enemyShots=[]; sunkByMe=[]; mySunk=[]; turn='p1';
   showPhase('battle');
-  buildGrid('enemy-grid-container', 'enemy-grid', false);
-  buildGrid('my-battle-grid-container', 'my-battle-grid', false);
+  buildGrid('enemy-grid-container','enemy-grid');
+  buildGrid('my-battle-grid-container','my-battle-grid');
   renderMyBattleGrid();
-  buildFleetStatus('enemy-fleet-status', 'enemy');
-  buildFleetStatus('my-fleet-status', 'mine');
-  attachFiringEvents();
-  updateTurn(firstTurn);
-  addChat('system', 'Battle begins! Player 1 fires first.');
+  buildFleet('enemy-fleet-status','enemy');
+  buildFleet('my-fleet-status','mine');
+  attachFiring();
+  updateTurn();
+  log('Battle begins! Player 1 fires first.');
 }
 
-function attachFiringEvents() {
-  const grid = document.getElementById('enemy-grid');
-  if (!grid) return;
-  grid.querySelectorAll('td').forEach(td => {
+function attachFiring() {
+  document.getElementById('enemy-grid').querySelectorAll('td').forEach(td => {
     td.addEventListener('click', () => {
-      if (phase !== 'battle') return;
-      const col = td.dataset.col;
-      const row = parseInt(td.dataset.row);
-      fire(col, row);
+      if (phase!=='battle' || turn!==myRole) return;
+      const col=td.dataset.col, row=+td.dataset.row;
+      if (myShots.find(s=>s.col===col&&s.row===row)) return;
+      pub({ type:'fire', shooter:myRole, target:(myRole==='p1'?'p2':'p1'), col, row });
     });
   });
 }
 
-function fire(col, row) {
-  if (currentTurn !== myPlayerId) return;
-  if (myShots.find(s => s.col === col && s.row === row)) return;
-  const opponent = myPlayerId === 'p1' ? 'p2' : 'p1';
-  publish({ type: 'fire', shooter: myPlayerId, target: opponent, col, row });
-}
-
-function updateTurn(turnPlayerId) {
-  const isMyTurn = turnPlayerId === myPlayerId;
-  const pip = document.getElementById('turn-pip');
-  const lbl = document.getElementById('turn-label');
-  const banner = document.getElementById('banner-text');
-  const icon = document.getElementById('banner-icon');
-  const enemySection = document.getElementById('enemy-section');
-
-  pip.className = 'turn-pip ' + (isMyTurn ? 'my-turn' : 'enemy-turn');
-  lbl.textContent = isMyTurn ? 'YOUR TURN' : 'ENEMY TURN';
-
-  banner.textContent = isMyTurn ? 'Your turn — select a target and fire!' : 'Enemy is targeting...';
-  icon.textContent = isMyTurn ? '🎯' : '⏳';
-  enemySection.classList.toggle('targeting-active', isMyTurn);
-
+function updateTurn() {
+  const mine = turn===myRole;
+  document.getElementById('turn-pip').className = 'turn-pip '+(mine?'my-turn':'enemy-turn');
+  document.getElementById('turn-label').textContent = mine?'YOUR TURN':'ENEMY TURN';
+  document.getElementById('banner-text').textContent = mine?'Your turn — fire!':'Enemy targeting...';
+  document.getElementById('banner-icon').textContent = mine?'🎯':'⏳';
+  document.getElementById('enemy-section').classList.toggle('targeting-active',mine);
   const eg = document.getElementById('enemy-grid');
-  if (eg) eg.classList.toggle('no-hover', !isMyTurn);
+  if (eg) eg.classList.toggle('no-hover',!mine);
 }
 
 function renderMyBattleGrid() {
-  myShips.forEach(ship => {
-    ship.cells.forEach(c => {
-      const td = document.querySelector(`#my-battle-grid td[data-col="${c.col}"][data-row="${c.row}"]`);
-      if (td) td.classList.add('ship-own');
-    });
-  });
+  myShips.forEach(s => s.cells.forEach(c => {
+    const td = document.querySelector('#my-battle-grid td[data-col="'+c.col+'"][data-row="'+c.row+'"]');
+    if (td) td.classList.add('ship-own');
+  }));
 }
 
-function buildFleetStatus(containerId, side) {
-  const el = document.getElementById(containerId);
+function buildFleet(id, side) {
+  const el = document.getElementById(id);
   if (!el) return;
   el.innerHTML = '';
-  const sunk = side === 'enemy' ? sunkByMe : mySunk;
-  const sunkSizes = sunk.map(s => s.length).sort((a,b) => b-a);
+  const sunk = (side==='enemy'?sunkByMe:mySunk).map(s=>s.length).sort((a,b)=>b-a);
   SHIP_DEFS.forEach(ship => {
-    const idx = sunkSizes.indexOf(ship.size);
-    const isSunk = idx !== -1;
-    if (isSunk) sunkSizes.splice(idx, 1);
+    const idx = sunk.indexOf(ship.size);
+    const gone = idx!==-1;
+    if (gone) sunk.splice(idx,1);
     const row = document.createElement('div');
     row.className = 'fleet-row';
-    const cells = Array.from({length: ship.size}, () =>
-      `<div class="fleet-cell ${isSunk ? 'destroyed' : 'intact'}"></div>`
-    ).join('');
-    row.innerHTML = `<div class="ship-visual-sm">${cells}</div><span style="font-size:12px;color:${isSunk?'var(--red-bright)':'var(--mist)'}">${ship.name}</span>`;
+    row.innerHTML = '<div class="ship-visual-sm">' + Array.from({length:ship.size},()=>'<div class="fleet-cell '+(gone?'destroyed':'intact')+'"></div>').join('') + '</div><span style="font-size:12px;color:'+(gone?'var(--red-bright)':'var(--mist)')+'">'+ship.name+'</span>';
     el.appendChild(row);
   });
 }
 
-// ─── GAME OVER ───────────────────────────────────────────────────────────────
+// ── GAME OVER ─────────────────────────────────────────────────────────────────
 function showGameOver(won) {
-  phase = 'gameover';
-  const title = document.getElementById('go-title');
-  const sub = document.getElementById('go-sub');
-  title.textContent = won ? 'VICTORY' : 'DEFEAT';
-  title.className = 'go-title ' + (won ? 'win' : 'lose');
-  sub.textContent = won ? '⚓ Your fleet is triumphant! Enemy navy destroyed.' : '☠ Your fleet has been sunk. The enemy wins.';
+  phase='gameover';
+  document.getElementById('go-title').textContent = won?'VICTORY':'DEFEAT';
+  document.getElementById('go-title').className = 'go-title '+(won?'win':'lose');
+  document.getElementById('go-sub').textContent = won?'⚓ Enemy fleet destroyed!':'☠ Your fleet has been sunk.';
   showPhase('gameover');
 }
 
 function resetGame() {
-  myShips = []; placedShips = []; myShots = []; enemyShots = [];
-  sunkByMe = []; mySunk = []; iReady = false; opponentReady = false;
-  myPlayerId = null; myClientId = null;
-  phase = 'waiting';
+  myShips=[]; placedShips=[]; myShots=[]; enemyShots=[]; sunkByMe=[]; mySunk=[];
+  iReady=false; oppReady=false; myRole=null; myId=null; phase='waiting';
   showPhase('waiting');
-  document.getElementById('connect-btn').textContent = 'CONNECT';
-  document.getElementById('connect-btn').disabled = false;
-  if (ablyClient) { try { ablyClient.close(); } catch(e){} ablyClient = null; channel = null; }
-  setStatus('', 'Enter your Ably API key');
+  document.getElementById('connect-btn').textContent='CONNECT';
+  document.getElementById('connect-btn').disabled=false;
+  if (ably) { try{ably.close();}catch(e){} ably=null; ch=null; }
+  setStatus('','Enter your Ably API key to begin');
 }
 
-// ─── GRID BUILDER ────────────────────────────────────────────────────────────
+// ── GRID BUILDER ──────────────────────────────────────────────────────────────
 function buildGrid(containerId, tableId) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  container.innerHTML = '';
-  const table = document.createElement('table');
-  table.className = 'grid';
-  table.id = tableId;
-  const thead = document.createElement('thead');
-  const headRow = document.createElement('tr');
-  headRow.innerHTML = '<th></th>' + COLS.map(c => `<th>${c}</th>`).join('');
-  thead.appendChild(headRow);
-  table.appendChild(thead);
-  const tbody = document.createElement('tbody');
-  ROWS.forEach(r => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<th>${r}</th>`;
-    COLS.forEach(c => {
-      const td = document.createElement('td');
-      td.dataset.col = c;
-      td.dataset.row = r;
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  c.innerHTML='';
+  const t = document.createElement('table');
+  t.className='grid'; t.id=tableId;
+  const thead=document.createElement('thead');
+  const hr=document.createElement('tr');
+  hr.innerHTML='<th></th>'+COLS.map(c=>'<th>'+c+'</th>').join('');
+  thead.appendChild(hr); t.appendChild(thead);
+  const tbody=document.createElement('tbody');
+  ROWS.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML='<th>'+r+'</th>';
+    COLS.forEach(col=>{
+      const td=document.createElement('td');
+      td.dataset.col=col; td.dataset.row=r;
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
   });
-  table.appendChild(tbody);
-  container.appendChild(table);
+  t.appendChild(tbody); c.appendChild(t);
 }
 
-// ─── CHAT ────────────────────────────────────────────────────────────────────
-function addChat(who, text) {
-  const log = document.getElementById('chat-log');
-  if (!log) return;
-  const div = document.createElement('div');
-  div.className = 'chat-msg' + (who === 'system' ? ' system' : '');
-  if (who === 'system') {
-    div.textContent = text;
-  } else {
-    div.innerHTML = `<span class="who">${who.toUpperCase()}:</span> ${escapeHtml(text)}`;
-  }
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
-}
-
+// ── CHAT ──────────────────────────────────────────────────────────────────────
 function sendChat() {
-  const input = document.getElementById('chat-input');
-  const text = input.value.trim();
-  if (!text || !channel) return;
-  publish({ type: 'chat', player: myPlayerId, text });
-  addChat(myPlayerId || 'me', text);
-  input.value = '';
+  const inp=document.getElementById('chat-input');
+  const text=inp.value.trim();
+  if (!text||!ch) return;
+  pub({type:'chat',player:myRole,text});
+  chatMsg(myRole||'me',text);
+  inp.value='';
 }
 
-function escapeHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// ─── BLAST ANIMATION ─────────────────────────────────────────────────────────
-function showBlast(text, type) {
-  const overlay = document.getElementById('explosion-overlay');
-  const el = document.createElement('div');
-  el.className = `blast-text ${type}`;
-  el.textContent = text;
-  overlay.appendChild(el);
-  setTimeout(() => el.remove(), 900);
-}
-
-// ─── PHASE SWITCHER ──────────────────────────────────────────────────────────
-function showPhase(name) {
-  document.querySelectorAll('.phase-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById(`phase-${name}`)?.classList.add('active');
+// ── BLAST ─────────────────────────────────────────────────────────────────────
+function blast(text, type) {
+  const o=document.getElementById('explosion-overlay');
+  const e=document.createElement('div');
+  e.className='blast-text '+type; e.textContent=text;
+  o.appendChild(e); setTimeout(()=>e.remove(),900);
 }
 </script>
 </body>
