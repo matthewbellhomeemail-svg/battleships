@@ -276,6 +276,11 @@ function chatMsg(who, text) {
 }
 
 // ── CONNECT ───────────────────────────────────────────────────────────────────
+// Role assignment: both clients publish 'claim' with their ID and a timestamp.
+// After 4 seconds, whoever has the earliest timestamp among ALL claims is p1.
+// This is fully deterministic and has no race condition.
+let claims = [];  // { id, ts } collected during negotiation
+
 async function connectAbly() {
   const key  = document.getElementById('ably-key').value.trim();
   const room = document.getElementById('room-id').value.trim() || 'default';
@@ -286,8 +291,10 @@ async function connectAbly() {
 
   try {
     if (ably) { try { ably.close(); } catch(e){} }
+    claims = [];
     myId = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
     myRole = null;
+    const myTs = Date.now();
 
     ably = new Ably.Realtime({ key: key });
 
@@ -301,31 +308,53 @@ async function connectAbly() {
       setTimeout(() => settle(reject, new Error('Timed out after 15s')), 15000);
     });
 
-    setStatus('connected', 'Connected');
-    // Use history=true so we can retrieve recent messages to check if p1 exists
+    setStatus('connected', 'Negotiating roles...');
     ch = ably.channels.get('bs-' + room);
-
-    // Subscribe to live messages
     ch.subscribe(onMessage);
 
-    // Small delay for subscription to be active
-    await new Promise(r => setTimeout(r, 500));
+    // Wait for subscription to be active
+    await new Promise(r => setTimeout(r, 400));
 
-    // Check history to see if there is already a p1 waiting
-    // We do this by publishing a 'join' message and checking if a p1_here comes back quickly
-    // Use a flag: if we receive 'p1_here' within 3s we are p2, otherwise we are p1
-    pub({ type: 'p2_looking' });
+    // Add our own claim immediately
+    claims.push({ id: myId, ts: myTs });
 
-    await new Promise(r => setTimeout(r, 3000));
+    // Broadcast our claim
+    pub({ type: 'claim', ts: myTs });
 
-    if (!myRole) {
-      // No p1 responded — we are p1
+    // Wait 4 seconds to collect all claims
+    setStatus('connecting', 'Waiting for opponent... (4s)');
+    await new Promise(r => setTimeout(r, 4000));
+
+    // Sort by timestamp — earliest is p1, second is p2
+    claims.sort((a, b) => a.ts - b.ts);
+
+    const myIndex = claims.findIndex(c => c.id === myId);
+
+    if (myIndex === 0) {
       myRole = 'p1';
       document.getElementById('my-badge').textContent = 'P1';
       document.getElementById('connect-btn').textContent = 'CONNECTED';
-      setStatus('connected', 'You are Player 1 — waiting for opponent');
-      showPhase('waiting');
-      document.getElementById('waiting-sub').textContent = 'Share room "' + room + '" with your opponent. Both must use the same Ably key.';
+      if (claims.length === 1) {
+        setStatus('connected', 'You are Player 1 — waiting for opponent');
+        showPhase('waiting');
+        document.getElementById('waiting-sub').textContent = 'Share room "' + room + '" with your opponent. Both must use the same Ably key.';
+      } else {
+        setStatus('connected', 'You are Player 1');
+        log('Opponent found! Place your ships.');
+        startPlacing();
+      }
+    } else if (myIndex === 1) {
+      myRole = 'p2';
+      document.getElementById('my-badge').textContent = 'P2';
+      document.getElementById('connect-btn').textContent = 'CONNECTED';
+      setStatus('connected', 'You are Player 2');
+      log('Opponent found! Place your ships.');
+      startPlacing();
+    } else {
+      // More than 2 players — room full
+      setStatus('error', 'Room is full — try a different room name');
+      document.getElementById('connect-btn').disabled = false;
+      document.getElementById('connect-btn').textContent = 'CONNECT';
     }
 
   } catch(e) {
@@ -343,29 +372,13 @@ function onMessage(msg) {
 
   switch(d.type) {
 
-    case 'p2_looking':
-      // Someone is looking for p1. If I am already p1 and waiting, respond.
+    case 'claim':
+      // Another player is claiming a role — record their claim
+      if (!claims.find(c => c.id === d.from)) {
+        claims.push({ id: d.from, ts: d.ts });
+      }
+      // If we are already assigned p1 and waiting, a late joiner is p2
       if (myRole === 'p1' && phase === 'waiting') {
-        pub({ type: 'p1_here', for: d.from });
-      }
-      break;
-
-    case 'p1_here':
-      // p1 responded to our p2_looking — we are p2
-      if (!myRole && d.for === myId) {
-        myRole = 'p2';
-        document.getElementById('my-badge').textContent = 'P2';
-        document.getElementById('connect-btn').textContent = 'CONNECTED';
-        setStatus('connected', 'You are Player 2');
-        log('Connected to opponent! Place your ships.');
-        startPlacing();
-        pub({ type: 'p2_joined', for: d.from });
-      }
-      break;
-
-    case 'p2_joined':
-      // p1 hears p2 confirmed
-      if (myRole === 'p1' && d.for === myId) {
         log('Opponent connected! Place your ships.');
         startPlacing();
       }
