@@ -302,27 +302,30 @@ async function connectAbly() {
     });
 
     setStatus('connected', 'Connected');
+    // Use history=true so we can retrieve recent messages to check if p1 exists
     ch = ably.channels.get('bs-' + room);
 
-    // Subscribe BEFORE publishing anything — Ably v2 returns a Promise
+    // Subscribe to live messages
     ch.subscribe(onMessage);
 
-    // Small delay to ensure subscription is active
-    await new Promise(r => setTimeout(r, 300));
+    // Small delay for subscription to be active
+    await new Promise(r => setTimeout(r, 500));
 
-    // Announce arrival — p1 (if in room) will respond with 'welcome'
-    pub({ type: 'hello' });
+    // Check history to see if there is already a p1 waiting
+    // We do this by publishing a 'join' message and checking if a p1_here comes back quickly
+    // Use a flag: if we receive 'p1_here' within 3s we are p2, otherwise we are p1
+    pub({ type: 'p2_looking' });
 
-    // Give p1 2 seconds to respond; if no response we are p1
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 3000));
 
     if (!myRole) {
+      // No p1 responded — we are p1
       myRole = 'p1';
       document.getElementById('my-badge').textContent = 'P1';
       document.getElementById('connect-btn').textContent = 'CONNECTED';
       setStatus('connected', 'You are Player 1 — waiting for opponent');
       showPhase('waiting');
-      document.getElementById('waiting-sub').textContent = 'Share the room name "' + room + '" with your opponent';
+      document.getElementById('waiting-sub').textContent = 'Share room "' + room + '" with your opponent. Both must use the same Ably key.';
     }
 
   } catch(e) {
@@ -340,29 +343,29 @@ function onMessage(msg) {
 
   switch(d.type) {
 
-    case 'hello':
-      // Somebody joined. If I am p1, welcome them.
-      if (myRole === 'p1') {
-        pub({ type: 'welcome', for: d.from });
+    case 'p2_looking':
+      // Someone is looking for p1. If I am already p1 and waiting, respond.
+      if (myRole === 'p1' && phase === 'waiting') {
+        pub({ type: 'p1_here', for: d.from });
       }
       break;
 
-    case 'welcome':
-      // The welcome is for me — I am p2
+    case 'p1_here':
+      // p1 responded to our p2_looking — we are p2
       if (!myRole && d.for === myId) {
         myRole = 'p2';
         document.getElementById('my-badge').textContent = 'P2';
         document.getElementById('connect-btn').textContent = 'CONNECTED';
         setStatus('connected', 'You are Player 2');
-        log('Opponent found! Place your ships.');
+        log('Connected to opponent! Place your ships.');
         startPlacing();
-        pub({ type: 'p2here' });
+        pub({ type: 'p2_joined', for: d.from });
       }
       break;
 
-    case 'p2here':
-      // p1 hears that p2 arrived
-      if (myRole === 'p1') {
+    case 'p2_joined':
+      // p1 hears p2 confirmed
+      if (myRole === 'p1' && d.for === myId) {
         log('Opponent connected! Place your ships.');
         startPlacing();
       }
